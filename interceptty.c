@@ -744,7 +744,7 @@ int main (int argc, char *argv[])
 
 	  frontend_owner = find_uid(scratch);
 
-      fprintf(stderr,"Use frontend_owner: %s", frontend_owner);
+      fprintf(stderr,"Use frontend_owner: %d", frontend_owner);
       
 	  scratch = next_scratch;
 
@@ -756,7 +756,7 @@ int main (int argc, char *argv[])
 	    
 	    frontend_group = find_gid(scratch);
 
-        fprintf(stderr,"Use frontend_group: %s", frontend_group);
+        fprintf(stderr,"Use frontend_group: %d", frontend_group);
 
 	    scratch = next_scratch;
 	  }
