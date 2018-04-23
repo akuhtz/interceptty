@@ -559,8 +559,12 @@ int setup_front_tty(char *frontend, int f[2])
 
       fix_perms_after_exit(ttynam,st); /* This will create a monitor process */
 
-      if (chown(ttynam, frontend_owner, frontend_group) < 0)
-	errorf("Couldn't chown backend device to uid=%d, gid=%d: %s\n",st.st_uid,st.st_gid,strerror(errno));
+      if (chown(ttynam, frontend_owner, frontend_group) < 0) {
+        errorf("Couldn't chown backend device to uid=%d, gid=%d: %s\n",st.st_uid,st.st_gid,strerror(errno));
+      }
+      else {
+        fprintf(stderr,"Changed owner of frontend successfully.");
+      }
       if (chmod(ttynam, frontend_mode & 07777) < 0)
 	errorf("Couldn't set permissions on tty '%s': %s\n",strerror(errno));
     }
@@ -740,6 +744,8 @@ int main (int argc, char *argv[])
 
 	  frontend_owner = find_uid(scratch);
 
+      fprintf(stderr,"Use frontend_owner: %s", frontend_owner);
+      
 	  scratch = next_scratch;
 
 	  if ((next_scratch = strchr(scratch,',')) != NULL)
@@ -749,6 +755,8 @@ int main (int argc, char *argv[])
 	    next_scratch++;
 	    
 	    frontend_group = find_gid(scratch);
+
+        fprintf(stderr,"Use frontend_group: %s", frontend_group);
 
 	    scratch = next_scratch;
 	  }
