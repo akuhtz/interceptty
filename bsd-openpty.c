@@ -75,6 +75,8 @@ int
 my_openpty(int *amaster, int *aslave, char *name)
 {
 #if defined(HAVE_OPENPTY)
+#pragma message("HAVE_OPENPTY is defined.")
+
         /* Re-implement with clearer rules about the size of name:
 	 * must be TTYLEN+1 bytes.
 	 */
@@ -91,6 +93,7 @@ my_openpty(int *amaster, int *aslave, char *name)
 	strcpy(name,tmpname);
 	return (0);
 #elif defined(HAVE__GETPTY)
+#pragma message("HAVE_GETPTY is defined.")
 	/*
 	 * _getpty(3) exists in SGI Irix 4.x, 5.x & 6.x -- it generates more
 	 * pty's automagically when needed
@@ -110,6 +113,7 @@ my_openpty(int *amaster, int *aslave, char *name)
 	return (0);
 
 #elif defined(HAVE_DEV_PTMX)
+#pragma message("HAVE_DEV_PTMX is defined.")
 	/*
 	 * This code is used e.g. on Solaris 2.x.  (Note that Solaris 2.3
 	 * also has bsd-style ptys, but they simply do not work.)
@@ -205,6 +209,7 @@ my_openpty(int *amaster, int *aslave, char *name)
 
 #else
 	/* BSD-style pty code. */
+#pragma message("BSD-style pty code.")
 	char ptbuf[64], ttbuf[64];
 	int i;
 	const char *ptymajors = "pqrstuvwxyzabcdefghijklmno"

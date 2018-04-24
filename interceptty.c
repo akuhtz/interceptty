@@ -470,6 +470,7 @@ int setup_backend(int f[2])
 	case '=':
 		return setup_back_fds(backend+1,f);
 	default:
+		fprintf(stderr,"Setup the backend TTY: %s\n", backend);
 		return setup_back_tty(backend,f);
 	}
 }
