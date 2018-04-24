@@ -953,7 +953,7 @@ int main (int argc, char *argv[])
 				}
 				else
 				{
-					fsync (frontfd[1]);
+					fsync (backfd[1]);
 				}
 
 				if (!quiet)
