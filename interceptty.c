@@ -648,7 +648,7 @@ int setup_frontend(int f[2])
 			return setup_back_fds(frontend+1,f);
 		}
 
-	fprintf(stderr,"Setup the frontTTY.\n");
+	fprintf(stderr,"Setup the frontend TTY: %s\n", frontend);
 
 	return setup_front_tty(frontend,f);
 }
@@ -905,7 +905,13 @@ int main (int argc, char *argv[])
 				fprintf(stderr, "Write data to frontend device, len: %d\n", n);
 				/* We should handle this better.  FIX */
 				if (write (frontfd[1], buff, n) != n)
+				{
 					errorf("Error writing to frontend device: %s\n",strerror(errno));
+				}
+				else
+				{
+					fsync (frontfd[1]);
+				}
 				if (!quiet)
 					dumpbuff(1,buff,n);
 			}
@@ -942,7 +948,14 @@ int main (int argc, char *argv[])
 			{
 				fprintf(stderr, "Write data to backend device, len: %d\n", n);
 				if (write (backfd[1], buff, n) != n)
+				{
 					errorf("Error writing to backend device: %s\n",strerror(errno));
+				}
+				else
+				{
+					fsync (frontfd[1]);
+				}
+
 				if (!quiet)
 					dumpbuff(0,buff,n);
 			}
