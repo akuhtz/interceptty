@@ -62,6 +62,7 @@ char    *backend = NULL,
 int     verbose = 0,
 		linebuff = 0,
 		quiet = 0;
+int     hardlink = 0;
 int     created_link = 0;
 char    last_pty[TTYLEN] = "",
 		last_tty[TTYLEN] = "";
@@ -82,14 +83,17 @@ FILE *outfile;
 
 /* find & open a pty to be used by the pty-master */
 
-int find_ptyxx (char *ptyname)
+int find_ptyxx (char *ptyname, int *ttyfd)
 {
-	int fd, ttyfd;
+	int fd /*, ttyfd*/;
 
-	if (my_openpty(&fd,&ttyfd,ptyname) < 0)
+	if (my_openpty(&fd,ttyfd,ptyname) < 0)
+	{
 		errorf("Couldn't openpty: %s\n",strerror(errno));
+	}
+	fprintf(stderr,"Opened parent TTY with name: %s, fd: %d, ttyfd: %d\n", ptyname, fd, *ttyfd);
 
-	if (stty_raw(ttyfd) != 0)
+	if (stty_raw(*ttyfd) != 0)
 		errorf("Couldn't put pty into raw mode: %s\n",strerror(errno));
 	/* Throw away the ttyfd.  We'll keep it open because it prevents
 	 * errors when the client disconnects, but we don't ever plan to
@@ -100,8 +104,9 @@ int find_ptyxx (char *ptyname)
 }
 
 /* Create the pty */
-int create_pty (int *ptyfd, char *ttynam)
+int create_pty (int *ptyfd, char *ttynam, int *ttyfd)
 {
+	fprintf(stderr,"Create parent TTY with name: %s\n", ttynam);
 	char name[TTYLEN+1];
 
 	if (opt_ptyname)
@@ -130,11 +135,17 @@ int create_pty (int *ptyfd, char *ttynam)
 		{
 			ttynam[0]='\0';
 		}
+
+		fprintf(stderr,"Open parent TTY with name: %s, ttynam: %s", opt_ptyname, ttynam);
+
 		*ptyfd = open(opt_ptyname,O_RDWR|O_NOCTTY);
 	}
 	else
 	{
-		*ptyfd = find_ptyxx(name);
+		name[0] = 0;
+		fprintf(stderr,"Try to find TTY with name: %s\n", name);
+
+		*ptyfd = find_ptyxx(name, ttyfd);
 		strcpy(ttynam, name);
 	}
 	if (*ptyfd < 0)
@@ -539,16 +550,21 @@ int setup_front_tty(char *frontend, int f[2])
 	struct stat st;
 	int ptyfd;
 
+	int ttyfd;
+
 	/* Open the parent tty */
-	create_pty(&ptyfd, ttynam);
+	create_pty(&ptyfd, ttynam, &ttyfd);
 
 	/* Now set permissions, owners, etc. */
 	if (geteuid() == 0)
 	{
+		fprintf(stderr,"Set permissions for frontend.\n");
 		if ((frontend_mode == -1) && !strchr("@!=",backend[0]))
 		{
 			if (stat(backend, &st) < 0)
+			{
 				errorf("Couldn't stat backend device '%s': %s\n",backend,strerror(errno));
+			}
 			frontend_mode = st.st_mode;
 			frontend_owner = st.st_uid;
 			frontend_group = st.st_gid;
@@ -577,14 +593,30 @@ int setup_front_tty(char *frontend, int f[2])
 		 * probably wasn't.
 		 */
 		unlink(frontend);
-		if (symlink(ttynam, frontend) < 0)
+
+		if (hardlink == 0)
 		{
-			errorf("Couldn't symlink '%s' -> '%s': %s\n",frontend,ttynam,strerror(errno));
+			if (symlink(ttynam, frontend) < 0)
+			{
+				errorf("Couldn't symlink '%s' -> '%s': %s\n",frontend,ttynam,strerror(errno));
+			}
+
 		}
+		else
+		{
+			// create hardlink
+			if (link(ttynam, frontend) < 0)
+			{
+				errorf("Couldn't hardlink '%s' -> '%s': %s\n",frontend,ttynam,strerror(errno));
+			}
+		}
+
 		created_link = 1;
 	}
 
-	return f[0]=f[1]=ptyfd;
+//	return f[0]=f[1]=ptyfd;
+	f[1]= ttyfd;
+	return f[0]=ptyfd;
 }
 
 int setup_front_unix_socket(char *sockname, int f[2])
@@ -720,8 +752,11 @@ int main (int argc, char *argv[])
 	outfile = stdout;
 
 	/* Process options */
-	while ((c = getopt(argc, argv, "Vlqvs:o:p:t:m:u:g:/:")) != EOF)
+	while ((c = getopt(argc, argv, "Vlqvas:o:p:t:m:u:g:/:")) != EOF)
 		switch (c) {
+		case 'a':
+			hardlink = 1;
+			break;
 		case 'q':
 			quiet=1;
 			break;
@@ -903,15 +938,15 @@ int main (int argc, char *argv[])
 			}
 			else
 			{
-				fprintf(stderr, "Write data to frontend device, len: %d\n", n);
+				fprintf(stderr, "Write data to frontend device, len: %d, frontfd[1]: %d\n", n, frontfd[1]);
 				/* We should handle this better.  FIX */
-				if (write (frontfd[1], buff, n) != n)
+				if (write (frontfd[0], buff, n) != n)
 				{
 					errorf("Error writing to frontend device: %s\n",strerror(errno));
 				}
 				else
 				{
-					fsync (frontfd[1]);
+					fsync (frontfd[0]);
 				}
 				if (!quiet)
 					dumpbuff(1,buff,n);
