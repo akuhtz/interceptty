@@ -62,7 +62,6 @@ char    *backend = NULL,
 int     verbose = 0,
 		linebuff = 0,
 		quiet = 0;
-int     hardlink = 0;
 int     created_link = 0;
 char    last_pty[TTYLEN] = "",
 		last_tty[TTYLEN] = "";
@@ -594,23 +593,10 @@ int setup_front_tty(char *frontend, int f[2])
 		 */
 		unlink(frontend);
 
-		if (hardlink == 0)
+		if (symlink(ttynam, frontend) < 0)
 		{
-			if (symlink(ttynam, frontend) < 0)
-			{
-				errorf("Couldn't symlink '%s' -> '%s': %s\n",frontend,ttynam,strerror(errno));
-			}
-
+			errorf("Couldn't symlink '%s' -> '%s': %s\n",frontend,ttynam,strerror(errno));
 		}
-		else
-		{
-			// create hardlink
-			if (link(ttynam, frontend) < 0)
-			{
-				errorf("Couldn't hardlink '%s' -> '%s': %s\n",frontend,ttynam,strerror(errno));
-			}
-		}
-
 		created_link = 1;
 	}
 
@@ -752,11 +738,8 @@ int main (int argc, char *argv[])
 	outfile = stdout;
 
 	/* Process options */
-	while ((c = getopt(argc, argv, "Vlqvas:o:p:t:m:u:g:/:")) != EOF)
+	while ((c = getopt(argc, argv, "Vlqvs:o:p:t:m:u:g:/:")) != EOF)
 		switch (c) {
-		case 'a':
-			hardlink = 1;
-			break;
 		case 'q':
 			quiet=1;
 			break;
@@ -909,6 +892,8 @@ int main (int argc, char *argv[])
 			FD_SET (frontfd[0], &readset);
 
 			sel = select(fdmax + 1, &readset, NULL, NULL, NULL);
+
+			fprintf(stderr, "After select\n");
 		}
 		while (sel == -1 && errno == EINTR && !please_die_now);
 		if (sel == -1 && errno != EINTR)
@@ -962,10 +947,21 @@ int main (int argc, char *argv[])
 			{
 				if (listenfd)
 				{
+					fprintf(stderr, "Close the frontend device, frontfd: %d\n", frontfd[0]);
 					if (close(frontfd[0]) < 0)
+					{
 						errorf("Couldn't close old frontfd: %s\n",strerror(errno));
-					if ((frontfd[0]=frontfd[1]=accept(listenfd,NULL,NULL)) < 0)
+					}
+
+					// reset the file descriptor
+					frontfd[0]=frontfd[1] = 0;
+
+					fprintf(stderr, "Wait for new connection of frontend device, frontfd: %d\n", frontfd[0]);
+					if ((frontfd[0]=frontfd[1]=accept(listenfd,NULL,NULL)) < 0) {
 						errorf("Couldn't accept new socket connection: %s\n",strerror(errno));
+					}
+
+					fprintf(stderr, "Accepted new connection of frontend device, frontfd: %d\n", frontfd[0]);
 				}
 
 			}

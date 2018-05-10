@@ -84,6 +84,9 @@ my_openpty(int *amaster, int *aslave, char *name)
 
 	if (openpty(amaster, aslave, NULL, NULL, NULL) < 0)
 		return -1;
+
+	fprintf(stderr,"Opened master TTY, provided name: %s\n", name);
+
 	if (!name)
 	  	return 0;
 	if ((tmpname = ttyname(*aslave)) == NULL)
@@ -91,6 +94,9 @@ my_openpty(int *amaster, int *aslave, char *name)
 	if (strlen(tmpname) > TTYLEN)
 	  	return -1;
 	strcpy(name,tmpname);
+
+	fprintf(stderr,"Opened slave TTY with name: %s\n", name);
+
 	return (0);
 #elif defined(HAVE__GETPTY)
 #pragma message("HAVE_GETPTY is defined.")
@@ -165,6 +171,8 @@ my_openpty(int *amaster, int *aslave, char *name)
 
 #elif defined(HAVE_DEV_PTS_AND_PTC)
 	/* AIX-style pty code. */
+#pragma message("HAVE_DEV_PTS_AND_PTC is defined.")
+
 	const char *ttname;
 
 	if ((*amaster = open("/dev/ptc", O_RDWR | O_NOCTTY)) == -1)
@@ -177,9 +185,13 @@ my_openpty(int *amaster, int *aslave, char *name)
 		close(*amaster);
 		return (-1);
 	}
+
+	fprintf(stderr,"Opened master TTY with name: %s\n", ttname);
+
 	return (0);
 
 #elif defined(_UNICOS)
+#pragma message("_UNICOS is defined.")
 	char ptbuf[64], ttbuf[64];
 	int i;
 	int highpty;
@@ -203,6 +215,9 @@ my_openpty(int *amaster, int *aslave, char *name)
 			close(*amaster);
 			return (-1);
 		}
+
+		fprintf(stderr,"UNICOS, Opened master TTY with name: %s\n", name);
+
 		return (0);
 	}
 	return (-1);
@@ -235,6 +250,9 @@ my_openpty(int *amaster, int *aslave, char *name)
 		if (strlen(ttbuf) > TTYLEN)
 		  return (-1);
 		strcpy(name,ttbuf);
+
+		fprintf(stderr,"Open the slave side with name: %s\n", name);
+
 		/* Open the slave side. */
 		if ((*aslave = open(ttbuf, O_RDWR | O_NOCTTY)) == -1) {
 			close(*amaster);
